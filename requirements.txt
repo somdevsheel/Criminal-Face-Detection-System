@@ -1,0 +1,38 @@
+# Core Dependencies
+Flask
+Flask-CORS
+python-dotenv
+
+# Deep Learning & Computer Vision
+torch
+torchvision
+facenet-pytorch
+opencv-python
+Pillow
+numpy
+
+# Database
+SQLAlchemy
+alembic
+
+# Encryption & Security
+cryptography
+pycryptodome
+
+# Utilities
+scikit-learn
+pandas
+python-dateutil
+Werkzeug
+
+# Logging & Monitoring
+colorlog
+
+# Optional for GPU acceleration
+# insightface==0.7.3
+# onnxruntime-gpu==1.16.3
+
+# Development (optional)
+pytest
+black
+flake8

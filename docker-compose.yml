@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  criminal-detection:
+    build: .
+    container_name: criminal-face-detection
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist database
+      - ./criminal_detection.db:/app/criminal_detection.db
+      # Persist uploaded images
+      - ./data:/app/data
+      # Persist logs
+      - ./logs:/app/logs
+      # Persist models (to avoid re-downloading)
+      - ./models:/app/models
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-default-key-change-in-production}
+    restart: unless-stopped
+    networks:
+      - criminal-detection-network
+
+  # Optional: Add nginx reverse proxy
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: criminal-detection-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - criminal-detection
+  #   networks:
+  #     - criminal-detection-network
+  #   restart: unless-stopped
+
+networks:
+  criminal-detection-network:
+    driver: bridge
+
+volumes:
+  data:
+  logs:
+  models:
