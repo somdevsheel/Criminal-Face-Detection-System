@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 import os
 import logging
 from datetime import datetime
+# from werkzeug.serving import WSGIRequestHandler
 import base64
 import io
 import json
@@ -285,6 +286,10 @@ def recognize():
         logger.error(f"Error in recognition: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+
+# # Silence Chrome devtools noise
+# logging.getLogger('werkzeug').setLevel(logging.WARNING)
+# WSGIRequestHandler.protocol_version = "HTTP/1.1"
 
 # ----------------------------------------------------------
 # Additional endpoints for dashboard stats

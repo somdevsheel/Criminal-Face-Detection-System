@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Processing - Criminal Face Detection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        #videoCanvas {
+            max-width: 100%;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Video Face Detection</h1>
+        
+        <div class="section">
+            <h2>Live Webcam Detection</h2>
+            <div id="webcamStatus" class="status inactive">Status: Stopped</div>
+            <button class="btn btn-success" onclick="startWebcam()">Start Webcam</button>
+            <button class="btn btn-danger" onclick="stopWebcam()">Stop Webcam</button>
+            <a href="/" class="btn btn-primary">Back to Main</a>
+        </div>
+
+        <div class="section">
+            <h2>Process Video File</h2>
+            <input type="file" id="videoFile" accept="video/*">
+            <button class="btn btn-primary" onclick="processVideo()">Process Video</button>
+            <div id="videoStatus"></div>
+        </div>
+
+        <div class="section">
+            <h2>Instructions</h2>
+            <h3>Webcam Detection:</h3>
+            <ul>
+                <li>Click "Start Webcam" to begin live detection</li>
+                <li>Matched faces will be automatically saved</li>
+                <li>Check database for recorded matches</li>
+                <li>Press 'Q' in video window to quit (if running locally)</li>
+            </ul>
+
+            <h3>Video File Processing:</h3>
+            <ul>
+                <li>Upload CCTV footage or video file</li>
+                <li>System will process and detect faces</li>
+                <li>Results will be saved with annotations</li>
+                <li>Check logs for match details</li>
+            </ul>
+
+            <h3>For Local Testing (Command Line):</h3>
+            <pre>
+# Webcam
+python src/video_processor.py --mode webcam
+
+# Video file
+python src/video_processor.py --mode video --source path/to/video.mp4
+
+# RTSP stream (IP camera)
+python src/video_processor.py --mode rtsp --source rtsp://camera_url
+            </pre>
+        </div>
+    </div>
+
+    <script>
+        async function startWebcam() {
+            try {
+                const response = await fetch('/api/video/webcam/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ camera_id: 0 })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('webcamStatus').textContent = 'Status: Running';
+                    document.getElementById('webcamStatus').className = 'status active';
+                    alert('Webcam started! Check the application window or logs for detections.');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error starting webcam: ' + error.message);
+            }
+        }
+
+        async function stopWebcam() {
+            try {
+                const response = await fetch('/api/video/webcam/stop', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('webcamStatus').textContent = 'Status: Stopped';
+                    document.getElementById('webcamStatus').className = 'status inactive';
+                    alert('Webcam stopped');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error stopping webcam: ' + error.message);
+            }
+        }
+
+        async function processVideo() {
+            const fileInput = document.getElementById('videoFile');
+            const statusDiv = document.getElementById('videoStatus');
+            
+            if (!fileInput.files.length) {
+                alert('Please select a video file');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('video', fileInput.files[0]);
+            
+            statusDiv.innerHTML = '<div class="status active">Processing video...</div>';
+            
+            try {
+                const response = await fetch('/api/video/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusDiv.innerHTML = '<div class="status active">Video processing started! Check logs for progress.</div>';
+                } else {
+                    statusDiv.innerHTML = '<div class="status inactive">Error: ' + data.error + '</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status inactive">Error: ' + error.message + '</div>';
+            }
+        }
+    </script>
+</body>
+</html>
