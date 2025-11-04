@@ -6,7 +6,7 @@ Uses MTCNN for face detection and FaceNet (InceptionResnetV1) for feature extrac
 import torch
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance
 from facenet_pytorch import MTCNN, InceptionResnetV1
 import logging
 from typing import List, Tuple, Optional, Dict
@@ -40,16 +40,17 @@ class FaceDetectorEmbedder:
         logger.info(f"Initializing models on device: {self.device}")
         
         # Initialize MTCNN for face detection
-        # Parameters tuned for accuracy and speed
+        # Parameters tuned for better detection (more lenient)
         self.mtcnn = MTCNN(
             image_size=160,  # Standard size for FaceNet
             margin=20,       # Margin around detected face
-            min_face_size=40,  # Minimum face size to detect
-            thresholds=[0.6, 0.7, 0.7],  # MTCNN thresholds for P-Net, R-Net, O-Net
+            min_face_size=20,  # Minimum face size to detect
+            thresholds=[0.4, 0.5, 0.5],  # Very lenient thresholds for P-Net, R-Net, O-Net
             factor=0.709,    # Scale factor for image pyramid
             post_process=True,  # Normalize output
             device=self.device,
-            keep_all=True  # Keep all detected faces
+            keep_all=True,  # Keep all detected faces
+            selection_method='largest'  # Select largest face if multiple
         )
         
         # Initialize InceptionResnetV1 (FaceNet) for embeddings
@@ -72,19 +73,61 @@ class FaceDetectorEmbedder:
             # Load image
             img = Image.open(image_path).convert('RGB')
             
-            # Detect faces
-            # Returns: face tensors, probabilities, bounding boxes
-            faces, probs, boxes = self.mtcnn(img, return_prob=True)
+            # Enhance image quality for better detection
+            from PIL import ImageEnhance
             
-            if faces is None:
-                logger.warning(f"No faces detected in {image_path}")
+            # Increase contrast slightly
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.2)
+            
+            # Increase brightness slightly if image is too dark
+            enhancer = ImageEnhance.Brightness(img)
+            img = enhancer.enhance(1.1)
+            
+            # Detect faces - handle both return formats
+            try:
+                result = self.mtcnn(img, return_prob=True)
+                
+                # Check what was returned
+                if result is None or (isinstance(result, tuple) and result[0] is None):
+                    logger.warning(f"No faces detected in {image_path}")
+                    return None, None, None
+                
+                # Handle different return formats
+                if isinstance(result, tuple):
+                    if len(result) == 3:
+                        faces, probs, boxes = result
+                    elif len(result) == 2:
+                        faces, probs = result
+                        boxes = None
+                    else:
+                        faces = result[0]
+                        probs = None
+                        boxes = None
+                else:
+                    faces = result
+                    probs = None
+                    boxes = None
+                
+                # If we got faces but no boxes, we need to get them separately
+                if faces is not None and boxes is None:
+                    # Detect again to get boxes
+                    boxes, probs = self.mtcnn.detect(img)
+                    if boxes is None:
+                        logger.warning(f"Faces detected but no bounding boxes in {image_path}")
+                        return None, None, None
+                
+                logger.info(f"Detected {len(faces) if faces is not None else 0} face(s) in {image_path}")
+                return faces, boxes, probs
+                
+            except Exception as mtcnn_error:
+                logger.error(f"MTCNN error: {str(mtcnn_error)}")
                 return None, None, None
-            
-            logger.info(f"Detected {len(faces)} face(s) in {image_path}")
-            return faces, boxes, probs
             
         except Exception as e:
             logger.error(f"Error detecting faces in {image_path}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None, None, None
     
     def get_embedding(self, face_tensor: torch.Tensor) -> np.ndarray:

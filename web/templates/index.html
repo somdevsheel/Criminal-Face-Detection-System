@@ -1,136 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Criminal Face Detection System</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criminal Face Detection System</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+    header {
+      background: linear-gradient(135deg, #2c3e50, #34495e);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    header h1 { font-size: 2em; margin-bottom: 10px; }
+    .subtitle { opacity: 0.9; }
+    .stats-bar {
+      display: flex;
+      justify-content: space-around;
+      padding: 20px;
+      background: #f8f9fa;
+      border-bottom: 2px solid #e9ecef;
+    }
+    .stat-item { text-align: center; }
+    .stat-label { display: block; font-size: 0.9em; color: #6c757d; }
+    .stat-value { display: block; font-size: 2em; font-weight: bold; color: #667eea; }
+    .tabs { display: flex; background: #e9ecef; }
+    .tab-button {
+      flex: 1;
+      padding: 15px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+    }
+    .tab-button.active {
+      background: white;
+      border-bottom-color: #667eea;
+      font-weight: bold;
+    }
+    .tab-content { display: none; padding: 30px; }
+    .tab-content.active { display: block; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ced4da;
+      border-radius: 5px;
+    }
+    .btn { padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 1em; }
+    .btn-primary { background: #667eea; color: white; }
+    .btn-success { background: #28a745; color: white; }
+    .results { margin-top: 20px; }
+    .alert { padding: 15px; border-radius: 5px; margin-bottom: 15px; }
+    .alert-success { background: #d4edda; color: #155724; }
+    .alert-error { background: #f8d7da; color: #721c24; }
+    #loader {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .spinner {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #667eea;
+      border-radius: 50%;
+      width: 60px; height: 60px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .image-preview {
+      margin-top: 15px;
+      border: 2px dashed #ced4da;
+      border-radius: 5px;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .image-preview img { max-width: 100%; max-height: 400px; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🔍 Criminal Face Detection & Recognition System</h1>
-            <p class="subtitle">Advanced Face Recognition for Law Enforcement</p>
-        </header>
+  <div class="container">
+    <header>
+      <h1>🔍 Criminal Face Detection & Recognition System</h1>
+      <p class="subtitle">Advanced Face Recognition for Law Enforcement</p>
+    </header>
 
-        <div class="stats-bar" id="statsBar">
-            <div class="stat-item">
-                <span class="stat-label">Total Subjects:</span>
-                <span class="stat-value" id="totalSubjects">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Total Events:</span>
-                <span class="stat-value" id="totalEvents">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Recent Matches:</span>
-                <span class="stat-value" id="recentMatches">0</span>
-            </div>
-        </div>
-
-        <div class="tabs">
-            <button class="tab-button active" onclick="openTab('recognize')">Recognize Face</button>
-            <button class="tab-button" onclick="openTab('addSubject')">Add Subject</button>
-            <button class="tab-button" onclick="openTab('viewSubjects')">View Subjects</button>
-            <button class="tab-button" onclick="openTab('viewEvents')">View Events</button>
-        </div>
-
-        <!-- Recognition Tab -->
-        <div id="recognize" class="tab-content active">
-            <h2>Face Recognition</h2>
-            <div class="card">
-                <form id="recognizeForm">
-                    <div class="form-group">
-                        <label for="recognizeImage">Upload Image:</label>
-                        <input type="file" id="recognizeImage" name="image" accept="image/*" required>
-                        <div class="image-preview" id="recognizePreview"></div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="threshold">Similarity Threshold:</label>
-                        <input type="range" id="threshold" name="threshold" min="0.3" max="0.9" step="0.05" value="0.4">
-                        <span id="thresholdValue">0.40</span>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary">Recognize Faces</button>
-                </form>
-                
-                <div id="recognizeResults" class="results"></div>
-            </div>
-        </div>
-
-        <!-- Add Subject Tab -->
-        <div id="addSubject" class="tab-content">
-            <h2>Add New Subject</h2>
-            <div class="card">
-                <form id="addSubjectForm">
-                    <div class="form-group">
-                        <label for="subjectImage">Upload Image:</label>
-                        <input type="file" id="subjectImage" name="image" accept="image/*" required>
-                        <div class="image-preview" id="subjectPreview"></div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="subjectId">Subject ID:</label>
-                        <input type="text" id="subjectId" name="subject_id" placeholder="e.g., CRIM001" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="subjectName">Name:</label>
-                        <input type="text" id="subjectName" name="name" placeholder="Full Name" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="subjectCrime">Crime Description:</label>
-                        <textarea id="subjectCrime" name="crime" rows="3" placeholder="Description of crime..." required></textarea>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-success">Add Subject</button>
-                </form>
-                
-                <div id="addSubjectResults" class="results"></div>
-            </div>
-        </div>
-
-        <!-- View Subjects Tab -->
-        <div id="viewSubjects" class="tab-content">
-            <h2>Database Subjects</h2>
-            <div class="card">
-                <div class="search-bar">
-                    <input type="text" id="searchInput" placeholder="Search by name, ID, or crime...">
-                    <button onclick="searchSubjects()" class="btn btn-secondary">Search</button>
-                    <button onclick="loadSubjects()" class="btn btn-secondary">Show All</button>
-                </div>
-                
-                <div id="subjectsList" class="subjects-list"></div>
-            </div>
-        </div>
-
-        <!-- View Events Tab -->
-        <div id="viewEvents" class="tab-content">
-            <h2>System Events</h2>
-            <div class="card">
-                <div class="filter-bar">
-                    <select id="eventTypeFilter">
-                        <option value="">All Events</option>
-                        <option value="MATCH">Matches</option>
-                        <option value="NO_MATCH">No Matches</option>
-                        <option value="ADD_SUBJECT">Added Subjects</option>
-                        <option value="DELETE_SUBJECT">Deleted Subjects</option>
-                    </select>
-                    <button onclick="loadEvents()" class="btn btn-secondary">Refresh</button>
-                </div>
-                
-                <div id="eventsList" class="events-list"></div>
-            </div>
-        </div>
+    <div class="stats-bar">
+      <div class="stat-item"><span class="stat-label">Total Subjects:</span><span class="stat-value" id="totalSubjects">0</span></div>
+      <div class="stat-item"><span class="stat-label">Total Events:</span><span class="stat-value" id="totalEvents">0</span></div>
+      <div class="stat-item"><span class="stat-label">Recent Matches:</span><span class="stat-value" id="recentMatches">0</span></div>
     </div>
 
-    <div id="loader" class="loader" style="display: none;">
-        <div class="spinner"></div>
-        <p>Processing...</p>
+    <div class="tabs">
+      <button class="tab-button active" onclick="openTab(event, 'recognize')">Recognize Face</button>
+      <button class="tab-button" onclick="openTab(event, 'addSubject')">Add Subject</button>
+      <button class="tab-button" onclick="openTab(event, 'viewSubjects')">View Subjects</button>
+      <button class="tab-button" onclick="openTab(event, 'viewEvents')">View Events</button>
     </div>
 
-    <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <!-- Face Recognition Tab -->
+    <div id="recognize" class="tab-content active">
+      <h2>Face Recognition</h2>
+      <form id="recognizeForm" onsubmit="handleRecognize(event)">
+        <div class="form-group">
+          <label>Upload Image:</label>
+          <input type="file" name="image" accept="image/*" required onchange="previewImage(event, 'recognizePreview')">
+          <div class="image-preview" id="recognizePreview"></div>
+        </div>
+        <div class="form-group">
+          <label>Similarity Threshold: <span id="thresholdValue">0.40</span></label>
+          <input type="range" id="threshold" name="threshold" min="0.3" max="0.9" step="0.05" value="0.4"
+            oninput="document.getElementById('thresholdValue').textContent = parseFloat(this.value).toFixed(2)">
+        </div>
+        <button type="submit" class="btn btn-primary">Recognize Faces</button>
+      </form>
+      <div id="recognizeResults" class="results"></div>
+    </div>
+
+    <!-- Add Subject Tab -->
+    <div id="addSubject" class="tab-content">
+      <h2>Add New Subject</h2>
+      <form id="addSubjectForm" onsubmit="handleAddSubject(event)">
+        <div class="form-group">
+          <label>Upload Image:</label>
+          <input type="file" name="image" accept="image/*" required onchange="previewImage(event, 'subjectPreview')">
+          <div class="image-preview" id="subjectPreview"></div>
+        </div>
+        <div class="form-group"><label>Subject ID:</label><input type="text" name="subject_id" placeholder="e.g., CRIM001" required></div>
+        <div class="form-group"><label>Name:</label><input type="text" name="name" placeholder="Full Name" required></div>
+        <div class="form-group"><label>Crime Description:</label><textarea name="crime" rows="3" placeholder="Description of crime..." required></textarea></div>
+        <button type="submit" class="btn btn-success">Add Subject</button>
+      </form>
+      <div id="addSubjectResults" class="results"></div>
+    </div>
+
+    <!-- Subjects Tab -->
+    <div id="viewSubjects" class="tab-content">
+      <h2>Database Subjects</h2>
+      <div id="subjectsList">Loading...</div>
+    </div>
+
+    <!-- Events Tab -->
+    <div id="viewEvents" class="tab-content">
+      <h2>System Events</h2>
+      <div id="eventsList">Loading...</div>
+    </div>
+  </div>
+
+  <div id="loader"><div class="spinner"></div><p style="color: white; margin-top: 20px;">Processing...</p></div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => { loadStats(); loadSubjects(); loadEvents(); });
+
+    function openTab(evt, tabName) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+      document.getElementById(tabName).classList.add('active');
+      evt.currentTarget.classList.add('active');
+      if (tabName === 'viewSubjects') loadSubjects();
+      if (tabName === 'viewEvents') loadEvents();
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats'); const data = await res.json();
+        if (data.success) {
+          document.getElementById('totalSubjects').textContent = data.data.total_subjects || 0;
+          document.getElementById('totalEvents').textContent = data.data.total_events || 0;
+          document.getElementById('recentMatches').textContent = data.data.recent_matches || 0;
+        }
+      } catch (e) { console.error('Error loading stats:', e); }
+    }
+
+    function previewImage(event, previewId) {
+      const file = event.target.files[0], preview = document.getElementById(previewId);
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+        reader.readAsDataURL(file);
+      }
+    }
+
+    async function handleRecognize(event) {
+      event.preventDefault();
+      const formData = new FormData(event.target);
+      const resultsDiv = document.getElementById('recognizeResults');
+      document.getElementById('loader').style.display = 'flex';
+      resultsDiv.innerHTML = '';
+
+      try {
+        const response = await fetch('/api/recognize', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (data.success) {
+          if (data.data.faces_detected === 0) {
+            resultsDiv.innerHTML = '<div class="alert alert-error">No faces detected in image</div>';
+          } else {
+            const matches = data.data.matches;
+            const match = matches.find(m => m.status === 'MATCH');
+            let html = `<div class="alert alert-success">Detected ${data.data.faces_detected} face(s)</div>`;
+            if (match) {
+              const m = match.best_match;
+              html += `
+                <div style="background:#f8f9fa;padding:20px;margin:10px 0;border-radius:5px;">
+                  <h3>✓ MATCH FOUND</h3>
+                  <p><strong>ID:</strong> ${m.subject_id}</p>
+                  <p><strong>Name:</strong> ${m.name}</p>
+                  <p><strong>Crime:</strong> ${m.crime}</p>
+                  <p><strong>Similarity:</strong> ${(m.similarity_score * 100).toFixed(2)}%</p>
+                  <p><strong>Confidence:</strong> ${m.confidence_level}</p>
+                </div>`;
+            } else {
+              html += '<div class="alert alert-error">No match found</div>';
+            }
+            resultsDiv.innerHTML = html;
+          }
+          loadStats();
+        } else {
+          resultsDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
+        }
+      } catch (err) {
+        resultsDiv.innerHTML = `<div class="alert alert-error">Error: ${err.message}</div>`;
+      } finally {
+        document.getElementById('loader').style.display = 'none';
+      }
+    }
+
+    async function handleAddSubject(event) {
+      event.preventDefault();
+      const formData = new FormData(event.target);
+      const resultsDiv = document.getElementById('addSubjectResults');
+      document.getElementById('loader').style.display = 'flex';
+      resultsDiv.innerHTML = '';
+      try {
+        const res = await fetch('/api/add_subject', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          resultsDiv.innerHTML = `
+            <div class="alert alert-success">
+              <h3>✓ Subject Added Successfully</h3>
+              <p><strong>ID:</strong> ${data.data.subject_id}</p>
+              <p><strong>Name:</strong> ${data.data.name}</p>
+              <p><strong>Confidence:</strong> ${(data.data.confidence * 100).toFixed(2)}%</p>
+            </div>`;
+          event.target.reset();
+          document.getElementById('subjectPreview').innerHTML = '';
+          loadStats();
+        } else {
+          resultsDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
+        }
+      } catch (e) {
+        resultsDiv.innerHTML = `<div class="alert alert-error">Error: ${e.message}</div>`;
+      } finally {
+        document.getElementById('loader').style.display = 'none';
+      }
+    }
+
+    async function loadSubjects() {
+      const div = document.getElementById('subjectsList');
+      div.innerHTML = '<p>Loading...</p>';
+      try {
+        const res = await fetch('/api/subjects');
+        const data = await res.json();
+        if (data.success && data.data.length > 0) {
+          div.innerHTML = `<p>Found ${data.data.length} subject(s)</p>` +
+            data.data.map(s => `
+              <div style="background:#f8f9fa;padding:15px;margin:10px 0;border-radius:5px;">
+                <h3>${s.name} <span style="background:#667eea;color:white;padding:3px 10px;border-radius:12px;font-size:0.8em;">${s.subject_id}</span></h3>
+                <p><strong>Crime:</strong> ${s.crime}</p>
+                <p><small>Added: ${new Date(s.added_on).toLocaleString()}</small></p>
+              </div>`).join('');
+        } else div.innerHTML = '<p>No subjects in database</p>';
+      } catch (e) { div.innerHTML = `<p>Error: ${e.message}</p>`; }
+    }
+
+    async function loadEvents() {
+      const div = document.getElementById('eventsList');
+      div.innerHTML = '<p>Loading...</p>';
+      try {
+        const res = await fetch('/api/events?limit=20');
+        const data = await res.json();
+        if (data.success && data.data.length > 0) {
+          div.innerHTML = `<p>Showing ${data.data.length} event(s)</p>` +
+            data.data.map(e => `
+              <div style="background:#f8f9fa;padding:15px;margin:10px 0;border-radius:5px;">
+                <strong>${e.event_type}</strong>${e.subject_id ? ` - ${e.subject_id}` : ''}${e.score ? ` - Score: ${(e.score * 100).toFixed(2)}%` : ''}
+                <br><small>${new Date(e.timestamp).toLocaleString()}</small>
+              </div>`).join('');
+        } else div.innerHTML = '<p>No events found</p>';
+      } catch (e) { div.innerHTML = `<p>Error: ${e.message}</p>`; }
+    }
+  </script>
 </body>
 </html>
