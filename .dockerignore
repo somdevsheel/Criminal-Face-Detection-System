@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+venv311/
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Data / Models / Logs
+data/
+models/
+logs/
+*.db
+
+# Git
+.git
+.gitignore
+
+# Node (if exists)
+node_modules/

@@ -1,0 +1,65 @@
+# ===============================
+# Criminal Face Detection System
+# Compatible with Python 3.11.9
+# ===============================
+
+# --- Core Dependencies ---
+Flask==3.0.3
+Flask-Cors==4.0.1
+Flask-SocketIO==5.3.6
+python-dotenv==1.0.1
+Werkzeug==3.0.3
+
+# --- Deep Learning & Computer Vision ---
+facenet-pytorch==2.6.0         # Includes MTCNN & InceptionResnetV1
+opencv-python==4.10.0.84
+opencv-contrib-python==4.10.0.84
+Pillow==10.2.0
+tqdm==4.66.5
+numpy==1.26.4
+scikit-learn==1.5.2
+pandas==2.2.3
+python-dateutil==2.9.0.post0
+moviepy==1.0.3
+imageio==2.35.1
+imageio-ffmpeg==0.5.1
+
+# --- Database ---
+SQLAlchemy==2.0.34
+alembic==1.13.2
+sqlite-utils==3.36
+
+# --- Encryption & Security ---
+cryptography==43.0.1
+pycryptodome==3.20.0
+PyJWT==2.8.0
+pyotp==2.9.0
+qrcode==7.4.2
+
+# --- Authentication / OAuth ---
+Flask-Login==0.6.3
+Flask-Mail==0.9.1
+google-auth==2.35.0
+google-auth-oauthlib==1.2.1
+google-auth-httplib2==0.2.0
+
+# --- Logging & Monitoring ---
+colorlog==6.8.2
+
+# --- Communication / SMS (Optional) ---
+twilio==9.2.4
+
+# --- WebSocket / Realtime ---
+python-socketio==5.11.3
+python-engineio==4.9.1
+eventlet==0.37.0
+
+# --- Optional for GPU acceleration ---
+insightface==0.7.3
+onnxruntime-gpu==1.16.3
+
+# --- Development & Testing (Optional) ---
+pytest==8.3.3
+black==24.10.0
+flake8==7.1.1
+typing-extensions==4.12.2

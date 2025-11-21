@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criminal Face Detection System</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+    
+    <!-- Socket.IO for Live Monitoring -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin="anonymous"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            opacity: 0.9;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .tabs {
+            display: flex;
+            background: #e9ecef;
+            overflow-x: auto;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            min-width: 120px;
+        }
+
+        .tab-button.active {
+            background: white;
+            border-bottom-color: #667eea;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ced4da;
+            border-radius: 5px;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #6c757d;
+            font-size: 0.85em;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+
+        #loader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .image-preview {
+            margin-top: 15px;
+            border: 2px dashed #ced4da;
+            border-radius: 5px;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 400px;
+        }
+
+        .detection-card {
+            background: #fff3cd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .detection-card h4 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+
+        /* Live Stream Styles */
+        .live-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .video-section {
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            min-height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #videoFeed {
+            width: 100%;
+            height: auto;
+            display: none;
+        }
+
+        .no-feed {
+            color: #6c757d;
+            font-size: 1.2em;
+            text-align: center;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .recording-indicator {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .recording-indicator.active {
+            display: block;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.5; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-box label {
+            display: block;
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .stat-box .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .alerts-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .alert-card {
+            background: white;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            animation: slideIn 0.5s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .alert-card h4 {
+            color: #dc3545;
+            margin-bottom: 8px;
+        }
+
+        .alert-card p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 968px) {
+            .live-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Criminal Face Detection System</h1>
+            <p class="subtitle">Advanced Face Recognition for Law Enforcement</p>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">Total Subjects:</span>
+                <span class="stat-value" id="totalSubjects">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Total Events:</span>
+                <span class="stat-value" id="totalEvents">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Recent Matches:</span>
+                <span class="stat-value" id="recentMatches">0</span>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="openTab(event, 'recognize')">Recognize Face</button>
+            <button class="tab-button" onclick="openTab(event, 'liveMonitor')">📹 Live Stream</button>
+            <button class="tab-button" onclick="openTab(event, 'processVideo')">🎥 Process Video</button>
+            <button class="tab-button" onclick="openTab(event, 'addSubject')">Add Subject</button>
+            <button class="tab-button" onclick="openTab(event, 'viewSubjects')">View Subjects</button>
+            <button class="tab-button" onclick="openTab(event, 'viewEvents')">View Events</button>
+        </div>
+
+        <div id="recognize" class="tab-content active">
+            <h2>Face Recognition</h2>
+            <form id="recognizeForm" onsubmit="handleRecognize(event)">
+                <div class="form-group">
+                    <label>Upload Image:</label>
+                    <input type="file" name="image" accept="image/*" required onchange="previewImage(event, 'recognizePreview')">
+                    <div class="image-preview" id="recognizePreview"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Similarity Threshold: <span id="thresholdValue">0.40</span></label>
+                    <input type="range" id="threshold" name="threshold" min="0.3" max="0.9" step="0.05" value="0.4" 
+                           oninput="document.getElementById('thresholdValue').textContent = parseFloat(this.value).toFixed(2)">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Recognize Faces</button>
+            </form>
+            
+            <div id="recognizeResults" class="results"></div>
+        </div>
+
+        <div id="liveMonitor" class="tab-content">
+            <h2>📹 Live CCTV Monitoring</h2>
+            <div class="live-grid">
+                <!-- Video Feed Section -->
+                <div>
+                    <div class="video-section">
+                        <canvas id="videoCanvas" style="width: 100%; height: auto; display: none;"></canvas>
+                        <img id="videoFeed" alt="Live Feed" style="display: none;">
+                        <div class="no-feed" id="noFeed">
+                            <p style="font-size: 3em;">📹</p>
+                            <p>No Active Stream</p>
+                            <p style="font-size: 0.9em; margin-top: 10px;">Start monitoring to view live feed</p>
+                        </div>
+                        <div class="video-overlay" id="videoOverlay" style="display: none;">
+                            <div>⏱️ <span id="streamTime">00:00</span></div>
+                            <div>👤 Faces: <span id="faceCount">0</span></div>
+                        </div>
+                        <div class="recording-indicator" id="recordingIndicator">
+                            🔴 MONITORING
+                        </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <label>Total Detections</label>
+                            <div class="value" id="totalDetections">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <label>Matches Found</label>
+                            <div class="value" id="matchesFound">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <label>Frames Processed</label>
+                            <div class="value" id="framesProcessed">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <label>Alert Level</label>
+                            <div class="value" id="alertLevel" style="color: #28a745;">NORMAL</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls & Alerts Section -->
+                <div>
+                    <h3 style="margin-bottom: 20px;">⚙️ Controls</h3>
+                    
+                    <form id="liveMonitorForm" onsubmit="startLiveMonitoring(event)">
+                        <div class="form-group">
+                            <label>Stream Source:</label>
+                            <select id="streamType" onchange="updateStreamInput()">
+                                <option value="webcam">Webcam</option>
+                                <option value="rtsp">RTSP Stream</option>
+                                <option value="http">HTTP Stream</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" id="streamUrlGroup" style="display: none;">
+                            <label>Stream URL:</label>
+                            <input type="text" id="streamUrl" placeholder="rtsp://camera-ip:554/stream">
+                            <small>Enter RTSP or HTTP stream URL</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Processing Speed: <span id="liveFpsValue">1</span> FPS</label>
+                            <input type="range" id="liveFps" min="0.5" max="3" step="0.5" value="1" 
+                                   oninput="document.getElementById('liveFpsValue').textContent = this.value">
+                            <small>Higher = more accurate, slower</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Similarity Threshold: <span id="liveThresholdValue">0.65</span></label>
+                            <input type="range" id="liveThreshold" min="0.5" max="0.9" step="0.05" value="0.65" 
+                                   oninput="document.getElementById('liveThresholdValue').textContent = this.value">
+                            <small>Higher = fewer false positives (Recommended: 0.65-0.75)</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="startBtnLive">
+                            ▶️ Start Monitoring
+                        </button>
+                        <button type="button" class="btn btn-danger" id="stopBtnLive" 
+                                onclick="stopLiveMonitoring()" style="display: none;">
+                            ⏹️ Stop Monitoring
+                        </button>
+                    </form>
+
+                    <div class="alerts-section" style="margin-top: 20px;">
+                        <h3 style="margin-bottom: 15px;">🚨 Recent Alerts</h3>
+                        <div id="liveAlertsList">
+                            <div style="text-align: center; padding: 20px; color: #6c757d;">No alerts yet</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="processVideo" class="tab-content">
+            <h2>🎥 Process CCTV Video Footage</h2>
+            <form id="videoForm" onsubmit="handleVideoProcess(event)">
+                <div class="form-group">
+                    <label>Upload Video:</label>
+                    <input type="file" name="video" accept="video/*" required>
+                    <small>Supported formats: MP4, AVI, MOV, MKV</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Frames Per Second: <span id="fpsValue">1</span></label>
+                    <input type="range" id="fps" name="fps" min="0.5" max="5" step="0.5" value="1" 
+                           oninput="document.getElementById('fpsValue').textContent = this.value">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">🎬 Process Video</button>
+            </form>
+            
+            <div id="videoResults" class="results"></div>
+        </div>
+
+        <div id="addSubject" class="tab-content">
+            <h2>Add New Subject</h2>
+            <form id="addSubjectForm" onsubmit="handleAddSubject(event)">
+                <div class="form-group">
+                    <label>Upload Image:</label>
+                    <input type="file" name="image" accept="image/*" required onchange="previewImage(event, 'subjectPreview')">
+                    <div class="image-preview" id="subjectPreview"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Subject ID:</label>
+                    <input type="text" name="subject_id" placeholder="e.g., CRIM001" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Name:</label>
+                    <input type="text" name="name" placeholder="Full Name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Crime Description:</label>
+                    <textarea name="crime" rows="3" placeholder="Description of crime..." required></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-success">Add Subject</button>
+            </form>
+            
+            <div id="addSubjectResults" class="results"></div>
+        </div>
+
+        <div id="viewSubjects" class="tab-content">
+            <h2>Database Subjects</h2>
+            <div id="subjectsList">Loading...</div>
+        </div>
+
+        <div id="viewEvents" class="tab-content">
+            <h2>System Events</h2>
+            <div id="eventsList">Loading...</div>
+        </div>
+    </div>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <p style="color: white; margin-top: 20px;">Processing...</p>
+    </div>
+
+    <script>
+        // Global variables
+        let socket = null;
+        let streamStartTime = null;
+        let statsInterval = null;
+        let totalDetections = 0;
+        let matchesFound = 0;
+        let framesProcessed = 0;
+
+        // Load stats on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadSubjects();
+            loadEvents();
+        });
+
+        function openTab(evt, tabName) {
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let content of tabContents) {
+                content.classList.remove('active');
+            }
+            
+            const tabButtons = document.getElementsByClassName('tab-button');
+            for (let button of tabButtons) {
+                button.classList.remove('active');
+            }
+            
+            document.getElementById(tabName).classList.add('active');
+            evt.currentTarget.classList.add('active');
+            
+            if (tabName === 'viewSubjects') loadSubjects();
+            if (tabName === 'viewEvents') loadEvents();
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('totalSubjects').textContent = data.data.total_subjects || 0;
+                    document.getElementById('totalEvents').textContent = data.data.total_events || 0;
+                    document.getElementById('recentMatches').textContent = data.data.recent_matches || 0;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        function previewImage(event, previewId) {
+            const file = event.target.files[0];
+            const preview = document.getElementById(previewId);
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Live Monitoring Functions
+        function updateStreamInput() {
+            const streamType = document.getElementById('streamType').value;
+            const urlGroup = document.getElementById('streamUrlGroup');
+            
+            if (streamType === 'webcam') {
+                urlGroup.style.display = 'none';
+            } else {
+                urlGroup.style.display = 'block';
+            }
+        }
+
+        function connectWebSocket() {
+            if (socket) return;
+            
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('✅ WebSocket connected');
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('❌ WebSocket disconnected');
+            });
+            
+            socket.on('frame_update', (data) => {
+                console.log('📹 Frame received, faces:', data.faces, 'boxes:', data.boxes ? data.boxes.length : 0);
+                const canvas = document.getElementById('videoCanvas');
+                const videoFeed = document.getElementById('videoFeed');
+                const noFeed = document.getElementById('noFeed');
+                const ctx = canvas.getContext('2d');
+                
+                if (data.frame) {
+                    // Create image from base64
+                    const img = new Image();
+                    img.onload = function() {
+                        // Set canvas size to match image
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        
+                        // Draw image on canvas
+                        ctx.drawImage(img, 0, 0);
+                        
+                        console.log('🎨 Canvas drawn, size:', canvas.width, 'x', canvas.height);
+                        
+                        // Draw bounding boxes if faces detected
+                        if (data.boxes && data.boxes.length > 0) {
+                            console.log('📦 Drawing', data.boxes.length, 'bounding boxes');
+                            
+                            data.boxes.forEach((box, index) => {
+                                console.log(`Box ${index}:`, box);
+                                
+                                // const [x1, y1, x2, y2] = box.coordinates;
+                                // const width = x2 - x1;
+                                // const height = y2 - y1;
+                                const x1 = box.coordinates[0] * canvas.width;
+                                const y1 = box.coordinates[1] * canvas.height;
+                                const x2 = box.coordinates[2] * canvas.width;
+                                const y2 = box.coordinates[3] * canvas.height;
+                                const width = x2 - x1;
+                                const height = y2 - y1;
+                                                                
+                                console.log(`  Coordinates: (${x1}, ${y1}) to (${x2}, ${y2}), size: ${width}x${height}`);
+                                
+                                // Determine box color based on match status
+                                let boxColor = '#00ff00'; // Green for detected face
+                                let boxLabel = 'Face Detected';
+                                
+                                if (box.matched) {
+                                    boxColor = '#ff0000'; // Red for criminal match
+                                    boxLabel = `🚨 ${box.name}`;
+                                    console.log(`  🔴 MATCHED: ${box.name} (${(box.similarity_score * 100).toFixed(1)}%)`);
+                                } else {
+                                    console.log('  🟢 Face detected (no match)');
+                                }
+                                
+                                // Draw bounding box
+                                // ctx.strokeStyle = boxColor;
+                                // ctx.lineWidth = 4;
+                                // ctx.strokeRect(x1, y1, width, height);
+
+                                ctx.strokeStyle = boxColor;
+                                ctx.lineWidth = 3;
+                                ctx.strokeRect(x1, y1, width, height);
+                                
+                                // Draw label background
+                                ctx.fillStyle = boxColor;
+                                const labelText = boxLabel;
+                                ctx.font = 'bold 16px Arial';
+                                const textMetrics = ctx.measureText(labelText);
+                                const textWidth = textMetrics.width;
+                                const textHeight = 20;
+                                
+                                ctx.fillRect(x1, y1 - textHeight - 5, textWidth + 10, textHeight + 5);
+                                
+                                // Draw label text
+                                ctx.fillStyle = '#000000';
+                                ctx.fillText(labelText, x1 + 5, y1 - 8);
+                                
+                                // Draw confidence score if available
+                                if (box.similarity_score && box.similarity_score > 0) {
+                                    const scoreText = `${(box.similarity_score * 100).toFixed(1)}%`;
+                                    ctx.fillStyle = boxColor;
+                                    ctx.fillRect(x1, y2 + 5, 60, textHeight);
+                                    ctx.fillStyle = '#000000';
+                                    ctx.fillText(scoreText, x1 + 5, y2 + 18);
+                                }
+                            });
+                            
+                            console.log('✅ Bounding boxes drawn');
+                        } else {
+                            console.log('⚠️ No bounding boxes to draw');
+                        }
+                        
+                        // Show canvas, hide no-feed message
+                        canvas.style.display = 'block';
+                        videoFeed.style.display = 'none';
+                        noFeed.style.display = 'none';
+                    };
+                    
+                    img.onerror = function() {
+                        console.error('❌ Failed to load image');
+                    };
+                    
+                    img.src = 'data:image/jpeg;base64,' + data.frame;
+                }
+                
+                if (data.faces !== undefined) {
+                    document.getElementById('faceCount').textContent = data.faces;
+                }
+            });
+            
+            socket.on('criminal_detected', (data) => {
+                console.log('🚨 Criminal detected:', data.name);
+                displayLiveAlert(data);
+                matchesFound++;
+                updateLiveStats();
+                updateAlertLevel();
+            });
+            
+            socket.on('stats_update', (data) => {
+                console.log('📊 Stats update:', data);
+                framesProcessed = data.frames_processed || 0;
+                totalDetections = data.total_detections || 0;
+                updateLiveStats();
+            });
+            
+            socket.on('monitoring_started', () => {
+                console.log('✅ Monitoring started');
+            });
+            
+            socket.on('monitoring_stopped', () => {
+                console.log('⏹️ Monitoring stopped');
+            });
+            
+            socket.on('error', (data) => {
+                console.error('❌ Error:', data.message);
+                alert('Error: ' + data.message);
+            });
+        }
+
+        function startLiveMonitoring(event) {
+            event.preventDefault();
+            
+            const streamType = document.getElementById('streamType').value;
+            let streamUrl;
+            
+            if (streamType === 'webcam') {
+                streamUrl = '0';
+            } else {
+                streamUrl = document.getElementById('streamUrl').value;
+                if (!streamUrl) {
+                    alert('Please enter a stream URL');
+                    return;
+                }
+            }
+            
+            const fps = parseFloat(document.getElementById('liveFps').value);
+            const threshold = parseFloat(document.getElementById('liveThreshold').value);
+            
+            console.log(`Starting monitoring with threshold: ${threshold}`);
+            
+            if (!socket) {
+                connectWebSocket();
+                setTimeout(() => {
+                    socket.emit('start_monitoring', { 
+                        stream_url: streamUrl, 
+                        fps: fps,
+                        threshold: threshold
+                    });
+                    startStatsTimer();
+                }, 500);
+            } else {
+                socket.emit('start_monitoring', { 
+                    stream_url: streamUrl, 
+                    fps: fps,
+                    threshold: threshold
+                });
+                startStatsTimer();
+            }
+            
+            // Update UI
+            document.getElementById('startBtnLive').style.display = 'none';
+            document.getElementById('stopBtnLive').style.display = 'block';
+            document.getElementById('recordingIndicator').classList.add('active');
+            document.getElementById('videoOverlay').style.display = 'block';
+            
+            // Clear alerts
+            document.getElementById('liveAlertsList').innerHTML = '';
+            totalDetections = 0;
+            matchesFound = 0;
+            framesProcessed = 0;
+            updateLiveStats();
+        }
+
+        function stopLiveMonitoring() {
+            if (socket) {
+                socket.emit('stop_monitoring');
+            }
+            
+            stopStatsTimer();
+            
+            // Update UI
+            document.getElementById('startBtnLive').style.display = 'block';
+            document.getElementById('stopBtnLive').style.display = 'none';
+            document.getElementById('recordingIndicator').classList.remove('active');
+            document.getElementById('videoOverlay').style.display = 'none';
+            document.getElementById('videoFeed').style.display = 'none';
+            document.getElementById('videoCanvas').style.display = 'none';
+            document.getElementById('noFeed').style.display = 'block';
+        }
+
+        function displayLiveAlert(data) {
+            const alertsDiv = document.getElementById('liveAlertsList');
+            
+            // Remove empty state
+            if (alertsDiv.innerHTML.includes('No alerts yet')) {
+                alertsDiv.innerHTML = '';
+            }
+            
+            const alertHtml = `
+                <div class="alert-card">
+                    <h4>🚨 ${data.name}</h4>
+                    <p><strong>ID:</strong> ${data.subject_id}</p>
+                    <p><strong>Crime:</strong> ${data.crime}</p>
+                    <p><strong>Similarity:</strong> ${(data.similarity_score * 100).toFixed(2)}%</p>
+                    <p><strong>Time:</strong> ${new Date(data.timestamp).toLocaleTimeString()}</p>
+                </div>
+            `;
+            
+            alertsDiv.innerHTML = alertHtml + alertsDiv.innerHTML;
+            
+            // Keep only last 10 alerts
+            while (alertsDiv.children.length > 10) {
+                alertsDiv.removeChild(alertsDiv.lastChild);
+            }
+            
+            // Play alert sound
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGJ0fPTgjMGHm7A7+OZSA0OVqzn77BdGAg+ltryxnMpBSyBzvLZiTYIGWe+6+OgUBELTKXh8bllHAU2jdXzzn0vBSh+y/HajzsKE1iz6eyrWBUIQ5zd8sFuJAUuhM/z1YU1Bhxqvu7mnEwPDlOq5O+zYBoGPJPY88p3LAUne8rx3Ik8ChJVsu3tsVkXCECY2vG+aiIFL4XP8tqKNwgablvztmgjBjGCzfPaiDcHGGS76+maTQ8OT6nl77RfGgg7k9jzxnUsBSh9y/HbijsKElSx7O6wWRgIPpXY8sZ0KwUrdM3y2Yo4CBhnv+zjnlENC02k4fK4Yx0EMY7U8s+ANAYab8Dt4ppIDAsPU6zl8bNeGQc6kdXzyn0vBSh8y/HajDwK');
+            audio.play().catch(e => console.log('Audio play failed'));
+        }
+
+        function updateLiveStats() {
+            document.getElementById('totalDetections').textContent = totalDetections;
+            document.getElementById('matchesFound').textContent = matchesFound;
+            document.getElementById('framesProcessed').textContent = framesProcessed;
+        }
+
+        function updateAlertLevel() {
+            const alertLevel = document.getElementById('alertLevel');
+            
+            if (matchesFound > 5) {
+                alertLevel.textContent = 'HIGH';
+                alertLevel.style.color = '#dc3545';
+            } else if (matchesFound > 2) {
+                alertLevel.textContent = 'MEDIUM';
+                alertLevel.style.color = '#ffc107';
+            } else if (matchesFound > 0) {
+                alertLevel.textContent = 'LOW';
+                alertLevel.style.color = '#17a2b8';
+            } else {
+                alertLevel.textContent = 'NORMAL';
+                alertLevel.style.color = '#28a745';
+            }
+        }
+
+        function startStatsTimer() {
+            streamStartTime = Date.now();
+            statsInterval = setInterval(() => {
+                if (streamStartTime) {
+                    const elapsed = Math.floor((Date.now() - streamStartTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60);
+                    const seconds = elapsed % 60;
+                    document.getElementById('streamTime').textContent = 
+                        `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+            }, 1000);
+        }
+
+        function stopStatsTimer() {
+            if (statsInterval) {
+                clearInterval(statsInterval);
+                statsInterval = null;
+            }
+            streamStartTime = null;
+        }
+
+        // Other API Functions
+        async function handleRecognize(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const resultsDiv = document.getElementById('recognizeResults');
+            
+            document.getElementById('loader').style.display = 'flex';
+            resultsDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/recognize', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.data.faces_detected === 0) {
+                        resultsDiv.innerHTML = '<div class="alert alert-error">No faces detected in image</div>';
+                    } else {
+                        let html = `<div class="alert alert-success">Detected ${data.data.faces_detected} face(s)</div>`;
+                        data.data.matches.forEach(match => {
+                            if (match.status === 'MATCH') {
+                                html += `
+                                    <div style="background: #f8f9fa; padding: 20px; margin: 10px 0; border-radius: 5px;">
+                                        <h3>✓ MATCH FOUND</h3>
+                                        <p><strong>ID:</strong> ${match.best_match.subject_id}</p>
+                                        <p><strong>Name:</strong> ${match.best_match.name}</p>
+                                        <p><strong>Crime:</strong> ${match.best_match.crime}</p>
+                                        <p><strong>Similarity:</strong> ${(match.best_match.similarity_score * 100).toFixed(2)}%</p>
+                                        <p><strong>Confidence:</strong> ${match.best_match.confidence_level}</p>
+                                    </div>
+                                `;
+                            } else {
+                                html += '<div class="alert alert-error">No match found</div>';
+                            }
+                        });
+                        resultsDiv.innerHTML = html;
+                    }
+                    loadStats();
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+            } finally {
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+
+        async function handleVideoProcess(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const resultsDiv = document.getElementById('videoResults');
+            
+            document.getElementById('loader').style.display = 'flex';
+            resultsDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/process_video', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    let html = `
+                        <div class="alert alert-success">
+                            <h3>✓ Video Processing Complete</h3>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 20px; margin: 10px 0; border-radius: 5px;">
+                            <h3>📊 Results Summary</h3>
+                            <p><strong>Frames Processed:</strong> ${data.data.frames_processed}</p>
+                            <p><strong>Total Faces Detected:</strong> ${data.data.total_faces_detected}</p>
+                            <p><strong>Matches Found:</strong> ${data.data.matches_found.length}</p>
+                            <p><strong>Unique Subjects:</strong> ${data.data.unique_subjects.length}</p>
+                        </div>
+                    `;
+                    
+                    if (data.data.matches_found.length > 0) {
+                        html += '<h3 style="margin-top: 20px;">⚠️ Detected Criminals:</h3>';
+                        
+                        const subjectMap = {};
+                        data.data.matches_found.forEach(match => {
+                            if (!subjectMap[match.subject_id]) {
+                                subjectMap[match.subject_id] = {
+                                    ...match,
+                                    count: 0
+                                };
+                            }
+                            subjectMap[match.subject_id].count++;
+                        });
+                        
+                        for (const subjectId in subjectMap) {
+                            const subject = subjectMap[subjectId];
+                            html += `
+                                <div class="detection-card">
+                                    <h4>🚨 ${subject.name} (${subject.subject_id})</h4>
+                                    <p><strong>Crime:</strong> ${subject.crime}</p>
+                                    <p><strong>Detected in:</strong> ${subject.count} frame(s)</p>
+                                    <p><strong>Similarity:</strong> ${(subject.similarity_score * 100).toFixed(2)}%</p>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        html += '<div class="alert alert-success">✓ No matches found in the video</div>';
+                    }
+                    
+                    resultsDiv.innerHTML = html;
+                    loadStats();
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+            } finally {
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+
+        async function handleAddSubject(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const resultsDiv = document.getElementById('addSubjectResults');
+            
+            document.getElementById('loader').style.display = 'flex';
+            resultsDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/add_subject', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h3>✓ Subject Added Successfully</h3>
+                            <p><strong>ID:</strong> ${data.data.subject_id}</p>
+                            <p><strong>Name:</strong> ${data.data.name}</p>
+                            <p><strong>Confidence:</strong> ${(data.data.confidence * 100).toFixed(2)}%</p>
+                        </div>
+                    `;
+                    event.target.reset();
+                    document.getElementById('subjectPreview').innerHTML = '';
+                    loadStats();
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+            } finally {
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+
+        async function loadSubjects() {
+            const listDiv = document.getElementById('subjectsList');
+            listDiv.innerHTML = '<p>Loading...</p>';
+            
+            try {
+                const response = await fetch('/api/subjects');
+                const data = await response.json();
+                
+                if (data.success && data.data.length > 0) {
+                    let html = `<p>Found ${data.data.length} subject(s)</p>`;
+                    data.data.forEach(subject => {
+                        html += `
+                            <div style="background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                                <h3>${subject.name} <span style="background: #667eea; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.8em;">${subject.subject_id}</span></h3>
+                                <p><strong>Crime:</strong> ${subject.crime}</p>
+                                <p><small>Added: ${new Date(subject.added_on).toLocaleString()}</small></p>
+                            </div>
+                        `;
+                    });
+                    listDiv.innerHTML = html;
+                } else {
+                    listDiv.innerHTML = '<p>No subjects in database</p>';
+                }
+            } catch (error) {
+                listDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        async function loadEvents() {
+            const listDiv = document.getElementById('eventsList');
+            listDiv.innerHTML = '<p>Loading...</p>';
+            
+            try {
+                const response = await fetch('/api/events?limit=20');
+                const data = await response.json();
+                
+                if (data.success && data.data.length > 0) {
+                    let html = `<p>Showing ${data.data.length} event(s)</p>`;
+                    data.data.forEach(event => {
+                        html += `
+                            <div style="background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                                <strong>${event.event_type}</strong>
+                                ${event.subject_id ? ` - ${event.subject_id}` : ''}
+                                ${event.score ? ` - Score: ${(event.score * 100).toFixed(2)}%` : ''}
+                                <br><small>${new Date(event.timestamp).toLocaleString()}</small>
+                            </div>
+                        `;
+                    });
+                    listDiv.innerHTML = html;
+                } else {
+                    listDiv.innerHTML = '<p>No events found</p>';
+                }
+            } catch (error) {
+                listDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
